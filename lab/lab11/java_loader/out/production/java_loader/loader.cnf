@@ -1,0 +1,4 @@
+host = localhost:5432
+database = students_DB
+user = postgres
+password = 20011127qcf

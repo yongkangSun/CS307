@@ -1,0 +1,167 @@
+--part 1--
+--1--
+select * from generate_series(1, 30);
+select * from generate_series(5, 1, -2);
+select * from generate_series(4, 3);
+select * from generate_series(4, 5);
+
+select current_date + data_table.interval AS dates
+from generate_series(0, 28, 7) as data_table(interval);
+
+select * from generate_series('2021-04-10 16:20'::timestamp, '2021-04-10 18:10', '25 minutes');
+
+--2--
+select split_part('Feel relaxed studying database', ' ', 1);
+
+select split_part(t1.word, ' ', t2.number)
+from (select cast('Feel relaxed studying database' as text)) t1(word)
+cross join generate_series(1, 4) as t2(number);
+
+select split_part(t1.word, ' ', t2.number)
+from (select cast('Feel relaxed studying database' as text)) t1(word)
+cross join generate_series(1, length(t1.word) - length(replace(t1.word, ' ', '')) + 1) as t2(number);
+
+select substr('Feel relaxed studying database', 2, 1);
+
+select substr(character_table.cc, num.index, 1)
+from (select 'Feel relaxed studying database'::text) as character_table(cc)
+cross join generate_series(1, length(character_table.cc)) as num(index);
+
+--3--
+select ascii(substr(character_table.cc, num.index, 1)) as ascii, substr(character_table.cc, num.index, 1)
+from (select 'Feel relaxed studying database') as character_table(cc)
+cross join generate_series(1, length(character_table.cc)) as num(index)
+order by ascii;
+
+--part 2--
+--1--
+create or replace function sum_func(a int, b int)
+returns int
+language plpgsql
+as  $functions$
+begin
+    return a + b;
+end;
+$functions$;
+
+select sum_func(3, 4);
+
+drop function sum_func(a int, b int);
+
+--2--
+create or replace function fullname(firstname varchar, surname varchar)
+returns varchar
+language plpgsql
+as $$
+declare name varchar = null;
+begin
+    name = firstname || ' ' || surname;
+    return name;
+end;
+$$;
+
+select  fullname('ZHU', 'Yueming');
+
+drop function fullname(firstname varchar, surname varchar);
+
+--3--
+create function full_name(p_fn varchar, p_sn varchar, style char)
+returns varchar
+language plpgsql
+as $$
+begin
+    if upper(style) = 'w'
+        then return trim(coalesce(p_fn, '') || ' ' || p_sn);
+    elseif upper(style) = 'E'
+        then return trim(p_sn || ' ' || coalesce(p_fn, ''));
+    else
+        raise exception 'style must be W or E';
+    end if;
+end;
+$$;
+
+select full_name(p.first_name, p.surname, 'E')
+from people p
+join credits c on p.peopleid = c.peopleid
+join movies m on c.movieid = m.movieid
+where m.country = 'cn';
+
+drop function full_name(p_fn varchar, p_sn varchar, style char);
+
+--4--
+create or replace function factorial(number int)
+returns int
+language plpgsql
+as $$
+declare result int;
+begin
+    result = 1;
+    for i in 1 .. number loop
+        result = result * i;
+    end loop;
+    return result;
+end;
+$$;
+
+create or replace function factorial2(number int)
+returns int
+language plpgsql
+as $$
+declare
+    result int;
+    i int;
+begin
+    result = 1;
+    i = 1;
+    while i <= number loop
+        result = result * i;
+        i = i + 1;
+    end loop;
+    return result;
+end;
+$$;
+
+select factorial(5);
+select factorial2(5);
+
+--5--
+create function character_table(pattern varchar)
+returns table (
+        chr char,
+        ascii int )
+as $$
+begin
+    return query
+    select distinct substr(t1.title, t2.index, 1)::char chr,
+                    ascii(substring(t1.title, t2.index, 1)) ascii
+    from (select pattern) t1(title)
+    cross join generate_series(1, length(pattern)) t2(index)
+    order by ascii;
+end;
+$$
+language plpgsql;
+
+select * from character_table('I love database!');
+
+--6--
+create function character_cursor(pattern varchar)
+returns refcursor
+as $$
+declare
+    ref refcursor;
+begin
+    open ref for
+        select distinct substr(t1.title, t2.index, 1)::char chr,
+                        ascii(substr(t1.title, t2.index, 1)::char) ascii
+        from(select pattern) t1(title)
+        cross join generate_series(1, length(pattern)) t2(index)
+        order by ascii;
+    return ref;
+end
+$$
+language plpgsql;
+
+begin;
+select character_cursor('I love database!');
+fetch all in "<unnamed portal 4>";
+commit;

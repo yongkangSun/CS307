@@ -1,0 +1,161 @@
+drop table if exists chinese_titles;
+
+create table chinese_titles
+as
+select movieid,
+       row_number() over (partition by movieid order by title) as rn,
+       title
+from alt_titles
+where ascii(title) between 19968 and 40959;
+
+with t as (select cast('邋遢大王奇遇记' as varchar) as title)
+select title,
+       substring(title, n, 1) as one_char,
+       substring(title, n, 2) as two_chars,
+       substring(title, n, 3) as three_chars
+from t
+     cross join generate_series(1, 200) n
+where length(coalesce(substring(title, n, 1), '')) > 0
+order by n;
+
+with t as (select cast('邋遢大王奇遇记' as varchar) as title)
+select distinct
+       case n
+         when 1 then one_char
+         when 2 then two_chars
+         else three_chars
+       end as str
+from (select substring(title, n, 1) as one_char,
+             substring(title, n, 2) as two_chars,
+             substring(title, n, 3) as three_chars
+      from t
+           cross join generate_series(1, 200) n
+      where length(coalesce(substring(title, n, 1), '')) > 0) x
+cross join generate_series(1, 3) n;
+
+create or replace function chinese_split(p_chinese_text text)
+returns table(char_block varchar(3))
+as $$
+with t as (select p_chinese_text as chinese_text)
+select distinct
+       case n
+         when 1 then one_char
+         when 2 then two_chars
+         else three_chars
+       end
+from (select substring(chinese_text, n, 1) as one_char,
+             substring(chinese_text, n, 2) as two_chars,
+             substring(chinese_text, n, 3) as three_chars
+      from t
+           cross join generate_series(1, 200) n
+      where length(coalesce(substring(chinese_text, n, 1), '')) > 0) x
+cross join generate_series(1, 3) n;
+$$ language sql;
+
+select movieid, chinese_split(title) from chinese_titles ;
+
+alter table chinese_titles
+add constraint chinese_titles_pk primary key (movieid, rn);
+
+create table chinese_blocks
+       (movieid  int not null,
+        rn       int not null,
+        block    varchar(3) not null,
+        constraint chinese_blocks_pk
+               primary key(block, movieid, rn),
+        constraint chinese_blocks_fk
+               foreign key(movieid, rn)
+               references chinese_titles(movieid, rn)
+               on delete cascade);
+
+create or replace function chinese_title_split()
+returns trigger
+as $$
+begin
+  if tg_op = 'update'
+  then
+    delete from chinese_blocks
+    where movieid = old.movieid
+      and rn = old.rn;
+  end if;
+  insert into chinese_blocks(movieid, rn, block)
+  select new.movieid, new.rn, bl
+  from chinese_split(new.title) as bl;
+  return null;
+end;
+$$ language plpgsql;
+
+create trigger chinese_titles_trg
+after insert or update on chinese_titles
+for each row
+  execute procedure chinese_title_split();
+
+delete from chinese_titles;
+
+insert into chinese_titles values (9, 1, '晚春');
+
+insert into chinese_titles(movieid, rn, title)
+select movieid,
+       row_number() over (partition by movieid order by title) as rn,
+       title
+from alt_titles
+where ascii(title) between 19968 and 40959;
+
+create or replace function chinese_candidates(p_user_input text)
+returns table(movieid int)
+as $$
+   select movieid
+   from (select movieid, rank() over (order by hits desc) rnk
+         from (select cb.movieid, count(*) as hits
+               from chinese_split(p_user_input) searched
+                    join chinese_blocks cb
+                     on cb.block = searched
+               group by cb.movieid) x) y
+   where rnk = 1;
+$$ language sql;
+
+select movieid, title
+from chinese_titles
+where movieid in (select chinese_candidates('故事'));
+
+select title,
+       also_known_as,
+       origin,
+       string_agg(case c.credited_as
+                    when 'D' then trim(p.surname
+                                       || ' ' || coalesce(p.first_name, ''))
+                    else null
+                   end, ',') directors,
+       string_agg(case c.credited_as
+                    when 'A' then trim(p.surname
+                                       || ' ' || coalesce(p.first_name, ''))
+                    else null
+                   end, ',') actors
+from (select cm.title,
+             string_agg(at.title, ',') also_known_as,
+             co.country_name || ', ' || m.year_released origin,
+             m.movieid
+      from (select ct.movieid, ct.title
+            from chinese_candidates('施普灵河') cc
+                 join chinese_titles ct
+                  on ct.movieid = cc.movieid
+            where ct.rn = 1) cm
+           join movies m
+             on m.movieid = cm.movieid
+           join countries co
+             on co.country_code = m.country
+           left join alt_titles at
+             on at.movieid = cm.movieid
+            and at.title <> cm.title
+       group by cm.title,
+                co.country_name,
+                m.year_released,
+                m.movieid) x
+     left join credits c
+       on c.movieid = x.movieid
+     left join people p
+       on p.peopleid = c.peopleid
+group by title,
+         also_known_as,
+         origin
+order by origin;

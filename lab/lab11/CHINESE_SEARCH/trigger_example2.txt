@@ -1,0 +1,43 @@
+Second trigger example
+
+This one is based on what is done with titles in Latin characters.
+It demonstrates a few interesting things:
+ - functions that return a table (like generate_series())
+ - functions written in pure SQL.
+
+This is very Postgres specific, but comparable features exist in
+Oracle or SQL Server.
+
+There are several scripts to run, they are numbered. 
+
+The idea is for every Chinese title to split it into sequences of 1, 2
+or 3 characters. When we search a title, the same process is applied to
+the Chinese string that is searched, and the film(s) with the greatest
+number of matches will be returned.
+
+
+chinese_search0.sql  - Creates a table based on alt_titles but only
+                       containing Chinese titles. Note that as only the
+                       first character is checked, some Japanese titles
+                       slip in. There is also a row number added, because
+                       some films (Mainland/Hong Kong or Taiwan co-productions)
+                       may have both a title in simplified and traditional
+                       Chinese.
+chinese_search1.sql  - Intermediate query that shows how we are going
+                       to split titles.
+chinese_search2.sql  - Built upon the previous one, query that returns
+                       all the bits from a Chinese string.
+chinese_search3.sql  - Pure SQL function returning a table, based on the
+                       previous query. The ..._example.sql script show it
+                       in action.
+chinese_search3_example.sql
+chinese_titles_pk.sql- Run this one before chinese_search4.sql
+chinese_search4.sql  - Table to hold the bits (note the ON DELETE CASCADE -
+                       as it's populated by trigger, it's also automatically
+                       deleted) and trigger. At the end of the script it
+                       should be properly populated.
+chinese_search5.sql  - Another SQL table-returning function that finds
+                       suitable candidates for a film the (approximate)
+                       title of which was supplied as parameter.
+chinese_search6.sql  - Search in action. Not sure that my example is the
+                       best one.

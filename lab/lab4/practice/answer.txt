@@ -1,0 +1,104 @@
+select * from movies where country in ('pt', 'br');
+
+select * from movies where country = 'us' and year_released = 2001;
+
+select * from movies
+where country = 'sp'
+  and lower(title) not like '%a%'
+  and lower(title) not like '%o%';
+
+select * from movies
+where (country = 'cn' or country = 'tw' or country = 'hk' or country = 'mo')
+    and year_released between 1940 and 1949;
+
+select * from people
+where born <= 1920 and died is null;
+
+select * from alt_titles where title like '%山%';
+
+select count(*) from movies where upper(title) like '%MAN%';
+
+select count(*) from movies
+where upper(title) like 'MAN %'
+ or upper(title) like 'MAN''%'
+ or upper(title) like '% MAN %'
+ or upper(title) like '% MAN''%'
+ or upper(title) like '% MAN';
+
+select * from people where died - born >= 100;
+
+select * from people
+where (died is null and cast(extract(year from now()) as int) - born >= 100)
+    or died - born >= 100;
+
+select * from people where surname like '%''%';
+
+select * from countries where continent = 'EUROPE' and country_code like 'c%';
+
+select * from people where surname like substr(first_name, 1, 1) || '%';
+
+select title, year_released, runtime
+from movies
+where country = 'in' and runtime <= 120;
+
+select continent, count(*) from countries group by continent;
+
+select cast(extract(year from now()) as int) - max(born) from people where gender = 'F';
+
+select gender, round(avg(died - born), 1) from people group by gender;
+
+select country, count(*)
+from movies
+where country like 'm%'
+group by country;
+
+select count(distinct country) from movies;
+
+select min(year_released)
+from movies
+where country in ('cn' , 'tw' , 'hk');
+
+select count(*) from movies where year_released = 2010;
+
+select avg(cnt)
+from (select count(*) cnt from movies where year_released >= 1960 group by year_released) as lable_cnt;
+
+select count(*) from movies where year_released = 1965 and country = 'gb';
+
+
+select avg(cnt)
+from (select count(*)cnt
+    from credits
+    where credited_as = 'A'
+    group by movieid) x;
+
+select director_cnt, count(movieid) films_cnt
+from (select movieid, count(*) director_cnt
+    from credits
+    where credited_as = 'D'
+    group by movieid) as cnt
+group by director_cnt;
+
+select count(*), count(died) dead, sum(case when died is null then 1 else 0 end) alive
+from people;
+
+select max(cnt)
+from (select count(*) cnt
+    from people
+    group by surname) x;
+
+select count(*)
+from (select peopleid
+    from credits
+    where credited_as in ('A', 'D')
+    group by movieid, peopleid
+    having count(*) = 2) pad;
+
+select round(100 * sum(case gender when 'F' then 1 else 0 end) / count(*), 2) pow
+from people;
+
+select country, count(*)
+from movies
+where runtime >= 180
+group by country;
+

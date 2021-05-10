@@ -1,0 +1,83 @@
+select m.*
+    from movies m
+    join credits c on m.movieid = c.movieid
+    join people p on c.peopleid = p.peopleid
+where p.surname = 'Woo'
+    and p.first_name = 'John'
+    and c.credited_as = 'D';
+
+select p.first_name, p.surname,
+    case c.credited_as
+        when 'A' then 'Actor'
+        when 'D' then 'Director'
+    end as credited_as
+from movies m
+    join credits c on m.movieid = c.movieid
+    join people p on c.peopleid = p.peopleid
+where m.country = 'us'
+    and m.title = 'Treasure Island'
+    and m.year_released = 1934;
+
+select count(m.title)
+from movies m
+    join credits c on m.movieid = c.movieid
+    join people p on c.peopleid = p.peopleid
+where p.surname = 'Monroe'
+    and p.first_name = 'Marilyn'
+    and c.credited_as = 'A'
+    and m.year_released = 1952;
+
+select distinct p.surname, p.first_name, m.country
+from movies m
+    join credits c on m.movieid = c.movieid
+    join people p on c.peopleid = p.peopleid
+where c.credited_as = 'D'
+group by p.surname, p.first_name
+order by p.surname;
+
+select p.first_name, p.surname
+from (  select c.peopleid
+        from credits c
+        join movies m on c.movieid = m.movieid
+        where c.credited_as = 'D'
+        group by c.peopleid
+        having count(distinct m.country) > 1) x
+join people p on p.peopleid = x.peopleid;
+
+select m.title, m.year_released, m.country
+from movies m
+left join ( select c.movieid
+        from credits c
+        where c.credited_as = 'D') x
+on x.movieid = m.movieid
+where x.movieid is null
+and m.year_released >= 2010;
+
+select m.title, m.year_released, m.country
+from movies m
+left join credits c on c.movieid = m.movieid and c.credited_as = 'D'
+where m.year_released >= 2010 and c.movieid is null;
+
+select m.title
+from movies m
+group by m.title
+having count(*) > 1;
+
+select distinct r.title as title, r.country, r.year_released
+from movies m
+join movies r on r.title = m.title
+    and r.year_released > m.year_released;
+
+select distinct case m.country
+    when 'cn' then surname || ' ' || coalesce(first_name, '')
+    when 'tw' then surname || ' ' || coalesce(first_name, '')
+    when 'hk' then surname || ' ' || coalesce(first_name, '')
+    when 'jp' then surname || ' ' || coalesce(first_name, '')
+    when 'kr' then surname || ' ' || coalesce(first_name, '')
+    else coalesce(first_name, '') || ' ' || surname end as editor
+from movies m
+join credits c on m.movieid = c.movieid
+join people p on c.peopleid = p.peopleid
+where m.year_released = 2015
+and c.credited_as = 'D'
+order by editor;

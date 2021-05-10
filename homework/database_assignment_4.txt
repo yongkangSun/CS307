@@ -1,0 +1,147 @@
+--prepared work--
+create extension if not exists pgcrypto;
+
+select * from pg_extension where extname = 'pgcrypto';
+
+create table if not exists account
+(
+id int primary key,
+username varchar(20) not null,
+password varchar(60) not null,
+role varchar(20)
+);
+
+drop table account;
+
+create table if not exists account_log
+(
+user_id int,
+update_date timestamp,
+password varchar(60) not null ,
+primary key (user_id, update_date),
+foreign key (user_id) references account (id)
+);
+
+insert into account (id,username, password)
+values (30001219, 'zhuym', crypt('Db123456', gen_salt('bf')));
+
+select (password = crypt('Db123456', password)) as password_match
+from account
+where username = 'zhuym';
+
+--homework(1)--
+create or replace function password_check()
+    returns trigger
+as
+$$
+declare
+    i_Id                    account.id%type;
+    i_Password              account.password%type;
+    i_username              account.username%type;
+    usernameInPassword_flag bool;
+    validCharacter_flag     bool;
+begin
+    if (tg_op = 'INSERT')
+    then
+        i_Id := new.id;
+        i_Password := new.password;
+        i_username := new.username;
+        if (i_Id between 10000000 and 99999999 and length(i_Password) >= 8)
+        then
+            validCharacter_flag = false;
+            with character as (
+                select substr(character_table.cc, num.index, 1)        ch,
+                       ascii(substr(character_table.cc, num.index, 1)) ascii
+                from (select i_Password::text) as character_table(cc)
+                         cross join generate_series(1, length(character_table.cc)) as num(index))
+            select case sum(z.state) when 3 then true else false end as ans
+            into validCharacter_flag
+            from (
+                     select (case
+                                 when (type = 0 and cnt != 0) then -1
+                                 when (type = 1 and cnt > 0) then 1
+                                 when (type = 2 and cnt > 0) then 1
+                                 when (type = 3 and cnt > 0) then 1
+                                 when type = 4 then 0 end) as state
+                     from (select type, count(*) as cnt
+                           from (select case
+                                            when (c.ascii >= 48 and c.ascii <= 57) then 1
+                                            when (c.ascii >= 65 and c.ascii <= 90) then 2
+                                            when (c.ascii >= 97 and c.ascii <= 122) then 3
+                                            when (c.ch = '_'::text or c.ch = '*'::text or c.ch = '$'::text) then 4
+                                            else 0 end as type
+                                 from character c) as x
+                           group by type) as y) as z;
+            if (validCharacter_flag = true)
+            then
+                select case position(i_username in i_Password) when 0 then false else true end
+                into usernameInPassword_flag;
+                if (usernameInPassword_flag = false)
+                then
+                    if (i_Id >= 0 and i_Id <= 19999999)
+                    then
+                        new.role = 'School students';
+                    elseif (i_Id >= 20000000 and i_Id <= 29999999)
+                    then
+                        new.role = 'Exchange students';
+                    elseif ((i_Id >= 30000000 and i_Id <= 39999999) or (i_Id >= 50000000 and i_Id <= 59999999))
+                    then
+                        new.role = 'Teacher';
+                    else
+                        new.role = 'null';
+                    end if;
+                    new.password = crypt(i_Password, gen_salt('bf'));
+                else
+                    new = null;
+                end if;
+            else
+                new = null;
+            end if;
+        else
+            new = null;
+        end if;
+    else
+        new = null;
+    end if;
+    return new;
+end
+$$ language plpgsql;
+
+create trigger password_trigger
+before insert
+on account
+for each row
+execute procedure password_check();
+
+--test case--
+truncate table account cascade;
+insert into account(id, username, password) values
+(30020824,'Molly','abAB12e');-- less than 8 digits
+insert into account(id, username, password) values
+(50020825,'Harmony','abcdefgh'); -- only lowercase
+insert into account(id, username, password) values
+(30020826,'Bright','Abcaac12'); -- success
+insert into account(id, username, password) values
+(50020827,'Firm','abc123asd'); -- no uppercase
+insert into account(id, username, password) values
+(11913558,'Roswell','123578AbdeFa'); -- success
+insert into account(id, username, password) values
+(22011249,'Robust','asdaA12999999'); -- success
+insert into account(id, username, password) values
+(11937541,'Ross','Ba1sad19a'); -- success
+insert into account(id, username, password) values
+(11991451,'Sirena','ACzc901a'); -- success
+insert into account(id, username, password) values
+(11841390,'Frederick','asdasdzc12esLsadz'); -- success
+insert into account(id, username, password) values
+(11751923,'Wesley','aszcAsa12sd'); -- success
+insert into account(id, username, password) values
+(50019827,'Lloyd','zxcA21_9asd'); -- success
+insert into account(id, username, password) values
+(50019981,'Bob','123Bob2ads'); -- include user's own name
+insert into account(id, username, password) values
+(30891203,'Smith','_asd*91Ab'); -- success
+insert into account(id, username, password) values
+(11913724,'Zoo','Abc12&}asad'); -- include invalid character "}"
+insert into account(id, username, password) values
+(1194567,'HUANG','hasd19Hasd'); -- too short

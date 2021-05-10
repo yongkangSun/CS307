@@ -1,0 +1,209 @@
+----------------------------lab6练习题------------------------------
+--2
+select m.title, m.country, m.year_released
+from (  select c.movieid
+        from (  select peopleid
+                from people
+                where (first_name = 'Humphrey' and surname = 'Bogart')
+                or (first_name = 'Lauren' and surname = 'Bacall')   ) famous_couple
+        join credits c
+        on c.peopleid = famous_couple.peopleid and c.credited_as = 'A'
+        group by c.movieid
+        having count(*) = 2) bogart_plus_bacall
+join movies m
+on m.movieid = bogart_plus_bacall.movieid;
+--3
+select count(John_Ford.movieid)
+from (select m.movieid
+from movies m
+join credits c on m.movieid = c.movieid
+join people p on p.peopleid = c.peopleid
+where p.first_name = 'John' and p.surname = 'Ford' and c.credited_as = 'D') John_Ford
+join credits c on John_Ford.movieid = c.movieid
+join people p on c.peopleid = p.peopleid
+where p.first_name = 'John' and p.surname = 'Wayne' and c.credited_as = 'A';
+--4
+select p1.peopleid, p2.peopleid, p1.first_name, p1.surname, p1.born, p1.died
+from people p1
+join people p2
+on p2.surname = p1.first_name
+and p2.first_name = p1.surname
+and p2.born = p1.born
+and coalesce(p2.died, 0) = coalesce(p1.died, 0)
+and p2.peopleid > p1.peopleid;
+--5
+select p.first_name, p.surname, last_film.last_film,p.died
+from(select c.peopleid, max(m.year_released) last_film
+from movies m
+join credits c on m.movieid = c.movieid
+where credited_as = 'A'
+group by c.peopleid) last_film
+join people p on p.peopleid = last_film.peopleid
+where p.died > 20 + last_film.last_film;
+--6
+select m2.title, m2.year_released, m2.country
+from (select c.peopleid, min(m.year_released) first_movie
+from credits c
+join people p on p.peopleid = c.peopleid
+join movies m on c.movieid = m.movieid
+where c.credited_as = 'A'
+and p.first_name = 'Jackie'
+and p.surname = 'Chan'
+group by c.peopleid) a
+join credits c on a.peopleid = c.peopleid and c.credited_as = 'A'
+join movies m2 on c.movieid = m2.movieid and a.first_movie = m2.year_released;
+--7
+select p2.first_name, p2.surname, count(*) films
+from (
+    select p.peopleid ow, c.movieid
+    from movies m
+    join credits c on m.movieid = c.movieid
+    join people p on p.peopleid = c.peopleid
+    where c.credited_as = 'D'
+    and p.surname = 'Welles'
+    and p.first_name = 'Orson') ow_film
+join credits c on c.movieid = ow_film.movieid
+and c.credited_as = 'A'
+and c.peopleid <> ow_film.ow
+left join people p2 on p2.peopleid = c.peopleid
+group by p2.first_name, p2.surname;
+--8
+---(1)
+select distinct m.*
+from movies m
+where m.runtime = (select max(m.runtime)
+from movies m
+join credits c on m.movieid = c.movieid
+join people p on p.peopleid = c.peopleid
+where c.credited_as = 'D'
+and p.gender = 'F');
+---(2)
+with dfdw as
+(
+    select m.*
+    from (
+        select distinct c.movieid
+        from credits c
+        join people p on p.peopleid = c.peopleid
+        where p.gender = 'F' and c.credited_as = 'D'
+             ) fdw
+    join movies m on m.movieid = fdw.movieid
+    where coalesce(runtime, 0) > 0
+)
+select dfdw.*
+from dfdw
+where dfdw.runtime = (select max(runtime) from dfdw);
+--9
+select m.year_released as year,
+       m.title || '(' || c.country_name || ') was released' as event
+from movies m
+join countries c on m.country = c.country_code
+where m.year_released between 1930 and 1953
+union all
+select born, trim(coalesce(first_name, '') || ' ' || p.surname || ' was born')
+from people p
+where born between 1930 and  1935
+union all
+select died, trim(coalesce(first_name, '') || ' ' || p.surname || ' died')
+from people p
+where died between 1930 and  1935
+order by year;
+--10
+select year, event
+from (
+    select m.year_released as year,
+           m.title || '(' || c.country_name || ') was released' as event,
+           m.title as sort_key
+    from movies m
+    join countries c on m.country = c.country_code
+    where m.year_released between 1930 and 1953
+    union all
+    select born, trim(coalesce(first_name, '') || ' ' || p.surname || ' was born'), surname
+    from people p
+    where born between 1930 and  1935
+    union all
+    select died, trim(coalesce(first_name, '') || ' ' || p.surname || ' died'), surname
+    from people p
+    where died between 1930 and  1935 ) x
+order by year, sort_key;
+--11
+select year, event
+from (
+    select m.year_released as year,
+           m.title || '(' || c.country_name || ') was released' as event,
+           trim(replace(m.title, 'The', '')) as sort_key
+    from movies m
+    join countries c on m.country = c.country_code
+    where m.year_released between 1930 and 1953
+    union all
+    select born, trim(coalesce(first_name, '') || ' ' || p.surname || ' was born'), surname
+    from people p
+    where born between 1930 and  1935
+    union all
+    select died, trim(coalesce(first_name, '') || ' ' || p.surname || ' died'), surname
+    from people p
+    where died between 1930 and  1935 ) x
+order by year, sort_key;
+--12
+with ed as (
+    select min(year_released) as year
+    from movies
+    where title = 'Devdas'
+)
+select year, event
+from (
+    select m.year_released as year,
+           m.title || '(' || c.country_name || ') was released' as event,
+           trim(replace(m.title, 'The', '')) as sort_key
+    from movies m
+    join countries c on m.country = c.country_code
+    where m.year_released between 1930 and 1953
+    union all
+    select born, trim(coalesce(first_name, '') || ' ' || p.surname || ' was born'), surname
+    from people p
+    where born between 1930 and  1935
+    union all
+    select died, trim(coalesce(first_name, '') || ' ' || p.surname || ' died'), surname
+    from people p
+    where died between 1930 and  1935 ) x
+where year = (select year from ed)
+order by year, sort_key;
+--13
+--1-- except
+select m.*
+from movies m
+join credits c on m.movieid = c.movieid
+join people p on p.peopleid = c.peopleid
+where p.first_name = 'Qi' and p.surname = 'Shu' and c.credited_as = 'A'
+except
+select m.*
+from movies m
+join credits c on m.movieid = c.movieid
+join people p on p.peopleid = c.peopleid
+where p.first_name = 'You' and p.surname = 'Ge' and c.credited_as = 'A'
+order by year_released;
+--2--
+select m.*
+from movies m
+join credits c on m.movieid = c.movieid
+join people p on p.peopleid = c.peopleid
+where p.first_name = 'Qi' and p.surname = 'Shu' and c.credited_as = 'A'
+and m.movieid not in (select m.movieid
+from movies m
+join credits c on m.movieid = c.movieid
+join people p on p.peopleid = c.peopleid
+where p.first_name = 'You' and p.surname = 'Ge' and c.credited_as = 'A')
+order by m.year_released;
+
+--recursive (wrong)
+with q (surname, first_name, born, died)
+as (
+    select surname, first_name, born, died
+    from people
+    where surname = 'Qi' and first_name = 'Qiqiu'
+    union all
+    select p.surname, p.first_name, p.born, p.died
+    from people p
+    join q on  p.born = q.died)
+select distinct * from q order by born, surname;
+

@@ -1,0 +1,61 @@
+--1-
+select count(*)
+from (
+    select station_id
+    from line_detail
+    where line_id = 3
+    except
+    select station_id
+    from line_detail
+    where line_id = 4) a
+join stations s on a.station_id = s.station_id
+where s.latitude > (select avg(latitude) from stations);
+
+--2--
+select distinct district, count(*) as cnt
+from stations
+where position(
+    (select substr(english_name, 1, 1) as first_num
+    from stations
+    group by first_num
+    order by count(*) desc
+    limit 1) in english_name) != 0
+or position(lower((select substr(english_name, 1, 1) as first_num
+    from stations
+    group by first_num
+    order by count(*) desc
+    limit 1)) in english_name) != 0
+group by district
+order by cnt desc
+limit 6;
+
+--3--
+select district, cnt, station_id
+from (
+    select s.station_id, count(*) as cnt, district,
+           row_number() over(partition by district order by count(*) desc) as rnk,
+           case district
+                when 'Nanshan' then 3
+                when 'Bao''an' then 2
+                when 'Longhua' then 1
+                end as o
+    from bus_lines
+    join stations s on s.station_id = bus_lines.station_id
+    where s.district in ('Nanshan', 'Bao''an', 'Longhua')
+    group by s.station_id, s.district
+    order by district, cnt desc ) a
+where a.rnk <= 3
+order by o, cnt desc, station_id desc;
+
+--4--
+select b.line_id, b.opening, b.cnt,
+       round(100 * (b.cnt - b.cnt_last) / (b.cnt_last :: numeric), 2) || '%' as variation
+from (
+    select a.line_id, a.opening, a.cnt,
+           lag(cnt, 1) over() as cnt_last
+    from (
+        select ld.line_id, lines.opening, count(*) as cnt
+        from lines
+        inner join line_detail ld on lines.line_id = ld.line_id
+        group by ld.line_id, lines.opening
+        order by opening, line_id ) a ) b;

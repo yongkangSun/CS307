@@ -1,0 +1,62 @@
+--1--
+select case
+    when latitude is null then 'No latitude information for ' || s.english_name || ' station'
+    else 'The latitude of ' || s.english_name || ' station is: ' || latitude
+    end as latitude_info
+from stations s
+join line_detail ld on s.station_id = ld.station_id
+where ld.line_id = 4;
+
+--2--
+select station_id
+from bus_lines
+where bus_line = '2';
+
+select line_id, chinese_name
+from (select station_id
+from bus_lines
+where bus_line = '2') bus_2
+join line_detail on line_detail.station_id  = bus_2.station_id
+join stations s on s.station_id = line_detail.station_id
+order by line_id, s.station_id;
+
+--3--
+select c.line_id, chinese_name
+from (select count(*) as cnt, line_id
+from line_detail
+group by line_id
+order by cnt desc limit 1) c
+inner join line_detail on c.line_id = line_detail.line_id
+inner join stations on line_detail.station_id = stations.station_id
+where num = 1
+order by line_id;
+
+--4--
+select year, case event_id when 'o' then 'line ' || line_id || ' opened'
+    when 'e' then 'line ' || line_id || ' extended' end as event
+from (select 'o' as event_id, opening as year, line_id
+from lines
+where (opening >= 2008 and lines.opening <= 2021)
+union all
+select 'e' as event_id, latest_extension as year, line_id
+from lines
+where (lines.latest_extension >= 2008 and lines.latest_extension <= 2021)) a
+order by year;
+
+--5--
+select stations.station_id, chinese_name
+from (select l_1.station_id
+from (select ld.station_id
+from line_detail ld
+where ld.line_id = 5) l_5
+inner join (select ld.station_id
+from line_detail ld
+where ld.line_id = 1) l_1
+on l_1.station_id = l_5.station_id
+except
+select distinct ld.station_id
+from line_detail ld
+where ld.line_id = 2) a
+join stations on a.station_id = stations.station_id
+order by a.station_id;
+

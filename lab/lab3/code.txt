@@ -1,0 +1,47 @@
+create table if not exists student
+(
+    id serial primary key,
+    name varchar(10) not null,
+    student_id varchar(8) not null unique,
+    department_id varchar not null,
+    gender varchar(2) not null check (gender in ('w','m'))
+);
+
+create table if not exists department
+(
+    id serial primary key,
+    name varchar not null,
+    location varchar not null,
+    website varchar not null
+);
+
+alter table student rename column department to department_id;
+
+ALTER TABLE student ALTER COLUMN department_id SET DATA TYPE integer USING department_id :: integer, ALTER COLUMN department_id SET DEFAULT 0;
+
+alter table student
+    add constraint fk_department
+        foreign key (department_id)
+        references department(id);
+
+select * from information_schema."columns"
+where "table_name" = 'student';
+
+create table course
+(
+    id serial primary key,
+    name varchar not null ,
+    course_id integer not null unique,
+    department_id integer not null,
+    credit integer not null check (credit > 0),
+    constraint fk_department foreign key (department_id) references department(id)
+);
+
+create table student_course
+(
+    id serial primary key,
+    student_id varchar not null,
+    course_id integer not null,
+    constraint fk_student foreign key (student_id) references student(student_id),
+    constraint fk_course foreign key (course_id) references course(course_id)
+);

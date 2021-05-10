@@ -1,0 +1,61 @@
+select distinct station_id, chinese_name
+from stations
+where chinese_name like '%山%'
+order by station_id;
+
+select x.name, x.hex
+from (select c.name, c.hex, rank() OVER (ORDER BY c.hex ) as rank_row
+from color_names c
+order by c.hex) x
+where rank_row in (5,6,7,8,9);
+
+select b.bus_line, count(*) count
+from bus_lines b
+group by b.bus_line;
+
+select max(x.count)
+from (select b.bus_line, count(*) count
+from bus_lines b
+group by b.bus_line) x;
+
+select x.bus_line, x.count
+from (select b.bus_line, count(*) count
+      from bus_lines b
+      group by b.bus_line) x
+where x.count = (select max(x.count)
+                 from (select count(*) count
+                       from bus_lines b
+                       group by b.bus_line) x);
+
+select distinct b.station_id
+from bus_lines b
+where b.bus_line = '1' or b.bus_line=  '2';
+
+select distinct b.station_id
+from bus_lines b
+inner join (select distinct b.station_id
+from bus_lines b
+where b.bus_line = '2') x on x.station_id = b.station_id
+where b.bus_line = '1';
+
+select count(*)
+from (select distinct b.station_id
+from bus_lines b
+inner join (select distinct b.station_id
+from bus_lines b
+where b.bus_line = '2') x on x.station_id = b.station_id
+where b.bus_line = '1') y;
+
+select count(*)
+from bus_lines
+where bus_line = '1';
+
+select (round((select count(*)
+        from (select distinct b.station_id
+              from bus_lines b
+                       inner join (select distinct b.station_id
+                                   from bus_lines b
+                                   where b.bus_line = '2') x on x.station_id = b.station_id
+              where b.bus_line = '1') y) / (select count(*)
+                                            from bus_lines
+                                            where bus_line = '1') :: numeric, 1));

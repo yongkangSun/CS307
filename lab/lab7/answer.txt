@@ -1,0 +1,111 @@
+--------------------------------Exercise7------------------------------
+--1--
+select country_name, title, year_released
+from (
+    select c.country_name, m.title, m.year_released,
+           max(m.year_released) over (partition by c.country_name) as most_recent
+    from movies m
+    join countries c on m.country = c.country_code
+    where c.continent = 'ASIA') x
+where year_released = most_recent
+order by country_name, title;
+--2--
+--(1)
+with cnt_films as (
+    select country, count(*) as cnt
+    from movies
+    group by country
+)
+select c.country_name, x.cnt
+from (
+    select country, cnt
+    from cnt_films
+    where cnt > (select avg(cnt) from cnt_films)) x
+join countries c on c.country_code = x.country;
+--(2)
+select country_name, cnt
+from (
+    select country, cnt, avg(cnt) over() as average
+    from (
+        select country, count(*) as cnt
+        from  movies
+        group by country ) m ) x
+join countries on x.country = countries.country_code
+where x.cnt > x.average;
+--3--
+select c.country_name, round(100.0 * a.films / sum(a.films) over(), 2) as pct
+from (
+    select country, count(*) as films
+    from movies
+    group by country ) a
+join countries c on a.country = c.country_code
+order by pct desc;
+--4--
+select title, year_released
+from(
+    select title, year_released, row_number() over (order by year_released desc) rnk
+    from movies
+    where country = 'cn') recent
+where rnk <= 10
+order by rnk;
+--5--
+select continent, country_name, cnt
+from (
+    select continent, country_name, cnt,
+           rank() over(partition by continent order by cnt desc) as rnk
+    from (
+        select c.continent, c.country_name, count(m.movieid) as cnt
+        from countries c
+        join movies m on c.country_code = m.country
+        group by c.continent, c.country_name) x ) y
+where rnk = 1;
+--6--
+select y.country_name, p.first_name, p.surname, y.cnt as appearances
+from (
+    select x.country_name, x.peopleid, x.cnt,
+       rank() over(partition by x.country_name order by x.cnt desc) as rnk
+    from (
+        select c2.country_name, c.peopleid, count(*) as cnt
+        from credits c
+        join movies m on c.movieid = m.movieid
+        join countries c2 on c2.country_code = m.country
+        where c.credited_as = 'A'
+        and c2.country_name in ('China', 'United States', 'France', 'Italy', 'India')
+        group by c2.country_name, c.peopleid ) x ) y
+join people p on p.peopleid = y.peopleid
+where y.rnk <= 3
+order by country_name, appearances desc;
+--7--
+select y.country_name, p.first_name, p.surname, y.cnt as appearances
+from (
+    select x.country_name, x.peopleid, x.cnt,
+       rank() over(partition by x.country_name order by x.cnt desc) as rnk
+    from (
+        select c2.country_name, c.peopleid, count(*) as cnt
+        from credits c
+        join movies m on c.movieid = m.movieid
+        join countries c2 on c2.country_code = m.country
+        where c.credited_as = 'A'
+        and c2.country_name in ('China', 'United States', 'France', 'Italy', 'India')
+        and year_released >= 2010
+        group by c2.country_name, c.peopleid
+        having count(*) > 3) x ) y
+join people p on p.peopleid = y.peopleid
+where y.rnk <= 3
+order by country_name, appearances desc;
+--8--
+select co.country_name, year_released, year_count,
+       round(100.0 * (year_count - prev_year_cnt) / case prev_year_cnt
+           when 0 then null else prev_year_cnt end, 1)
+from (
+    select country, year_released, year_count,
+           lag(year_count, 1) over(partition by country order by year_released) as prev_year_cnt,
+           sum(year_count) over(partition by country) as country_cnt
+    from (
+        select country, year_released, count(*) as year_count
+        from movies m
+        where m.year_released > 2010
+        group by country, year_released ) a ) b
+join countries co on co.country_code = b.country
+where country_cnt >= 20;
+

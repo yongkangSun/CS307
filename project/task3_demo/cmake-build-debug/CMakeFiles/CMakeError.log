@@ -1,0 +1,16 @@
+Determining if the C compiler works failed with the following output:
+Change Dir: F:/数据库原理/project/task3_demo/cmake-build-debug/CMakeFiles/CMakeTmp
+
+Run Build Command(s):E:/cpp c/mingw_64_2/mingw64/bin/mingw32-make.exe cmTC_de9f9/fast && E:/cpp c/mingw_64_2/mingw64/bin/mingw32-make.exe  -f CMakeFiles\cmTC_de9f9.dir\build.make CMakeFiles/cmTC_de9f9.dir/build
+mingw32-make.exe[1]: Entering directory 'F:/数据库原理/project/task3_demo/cmake-build-debug/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_de9f9.dir/testCCompiler.c.obj
+"E:\cpp c\mingw_64_2\mingw64\bin\gcc.exe"    -o CMakeFiles\cmTC_de9f9.dir\testCCompiler.c.obj   -c F:\鏁版嵁搴撳師鐞哱project\task3_demo\cmake-build-debug\CMakeFiles\CMakeTmp\testCCompiler.c
+gcc.exe: error: F:\鏁版嵁搴撳師鐞哱project\task3_demo\cmake-build-debug\CMakeFiles\CMakeTmp\testCCompiler.c: No such file or directory
+gcc.exe: fatal error: no input files
+compilation terminated.
+mingw32-make.exe[1]: *** [CMakeFiles\cmTC_de9f9.dir\build.make:85: CMakeFiles/cmTC_de9f9.dir/testCCompiler.c.obj] Error 1
+mingw32-make.exe[1]: Leaving directory 'F:/数据库原理/project/task3_demo/cmake-build-debug/CMakeFiles/CMakeTmp'
+mingw32-make.exe: *** [Makefile:140: cmTC_de9f9/fast] Error 2
+
+
+
